@@ -1,0 +1,5 @@
+PyQt5>=5.15
+pykiwoom>=0.1.5
+pandas==2.0.3
+numpy<2
+pywin32>=306

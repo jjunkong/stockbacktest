@@ -151,6 +151,72 @@ def step_c_download_ohlcv(years_back: int = YEARS_BACK, sleep_sec: float = 0.05)
         print(f"  실패 목록: {FAILED_TXT}")
 
 
+def step_c_incremental(days_back: int = 10, sleep_sec: float = 0.05) -> None:
+    """
+    Incremental 갱신 — 기존 CSV에 최근 N일치만 추가. 매일 자동 갱신용.
+
+    동작:
+      - 기존 파일 있으면 마지막 날짜 확인 → 그 다음 날부터 받음 (또는 days_back 안전마진)
+      - 새로 받은 데이터를 기존에 append + 날짜 중복 제거
+    """
+    print(f"[Step C-incremental] 최근 {days_back}일치 갱신 중...")
+    if not TICKERS_FILTERED_CSV.exists():
+        raise FileNotFoundError(f"{TICKERS_FILTERED_CSV} 없음. Step A/B 먼저.")
+
+    filtered = pd.read_csv(TICKERS_FILTERED_CSV, dtype={"티커": str})
+    filtered["티커"] = filtered["티커"].str.zfill(6)
+    today = datetime.now()
+    end_str = today.strftime("%Y-%m-%d")
+
+    targets = filtered["티커"].tolist()
+    updated = 0
+    new_files = 0
+    failed: list[str] = []
+
+    for ticker in tqdm(targets, desc="갱신"):
+        out_path = OHLCV_DIR / f"{ticker}.csv"
+
+        if out_path.exists() and out_path.stat().st_size > 200:
+            existing = pd.read_csv(out_path, parse_dates=["날짜"])
+            last_date = existing["날짜"].max()
+            # 안전 마진 N일 빼고 그 이후부터 다시 받아 append (휴장/누락 보정)
+            start_dt = last_date - timedelta(days=days_back)
+        else:
+            existing = None
+            start_dt = today - timedelta(days=365 * 5 + 30)
+
+        start_str = start_dt.strftime("%Y-%m-%d")
+
+        try:
+            new_df = fdr.DataReader(ticker, start_str, end_str)
+            if new_df is None or new_df.empty:
+                continue
+            # 미마감 제거
+            new_df = new_df[new_df["Open"] > 0]
+            if new_df.empty:
+                continue
+            new_df.index.name = "날짜"
+            new_df = new_df.reset_index()
+
+            if existing is not None:
+                merged = pd.concat([existing, new_df], ignore_index=True)
+                merged = merged.drop_duplicates(subset=["날짜"], keep="last").sort_values("날짜")
+                merged.to_csv(out_path, index=False, encoding="utf-8-sig")
+                updated += 1
+            else:
+                new_df.to_csv(out_path, index=False, encoding="utf-8-sig")
+                new_files += 1
+
+            time.sleep(sleep_sec)
+        except Exception as e:
+            failed.append(ticker)
+            print(f"\n  [경고] {ticker} 실패: {e}")
+
+    print(f"  완료. 갱신 {updated}, 신규 {new_files}, 실패 {len(failed)}")
+    if failed:
+        FAILED_TXT.write_text("\n".join(failed), encoding="utf-8")
+
+
 def main() -> None:
     import sys
     args = sys.argv[1:]
@@ -158,6 +224,7 @@ def main() -> None:
         "a": step_a_fetch_all_tickers,
         "b": step_b_filter,
         "c": step_c_download_ohlcv,
+        "incremental": step_c_incremental,
     }
     if not args or "all" in args:
         step_a_fetch_all_tickers()
@@ -165,7 +232,10 @@ def main() -> None:
         step_c_download_ohlcv()
     else:
         for s in args:
-            runners[s]()
+            if s in runners:
+                runners[s]()
+            else:
+                print(f"알 수 없는 단계: {s}")
 
 
 if __name__ == "__main__":

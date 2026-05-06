@@ -1,0 +1,29 @@
+# 이미지 빌드에 불필요한 파일 제외 (이미지 작게)
+venv/
+kiwoom/
+frontend/
+.next/
+node_modules/
+__pycache__/
+*.py[cod]
+.git/
+.github/
+.streamlit/
+.claude/
+.vscode/
+.idea/
+
+# 큰 데이터는 entrypoint.sh가 다운로드
+data/ohlcv/
+data/stocks.db
+data/signals/all_signals.csv
+data/results/
+data/kospi_index.csv
+data/failed_tickers.txt
+data/tickers_all.csv
+
+# 메모, 로그
+*.md
+!README.md
+!backend/Dockerfile
+*.log
