@@ -11,6 +11,7 @@ API 문서:
 
 from __future__ import annotations
 
+import os
 import time
 from contextlib import asynccontextmanager
 
@@ -51,16 +52,21 @@ app = FastAPI(
 
 
 # ===== CORS =====
-# 개발: localhost:3000 (Next.js dev), 배포: Vercel 도메인 추가
+# 개발: localhost / 배포: Vercel 도메인은 regex로 자동 허용 + 환경변수로 추가 도메인
+extra_origins = [
+    o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
         "http://localhost:3001",
         "http://127.0.0.1:3000",
-        # 배포 시 Vercel 도메인 추가:
-        # "https://stockbacktest.vercel.app",
+        *extra_origins,
     ],
+    # Vercel preview/production 도메인 자동 허용 (*.vercel.app)
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
