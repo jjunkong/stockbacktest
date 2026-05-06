@@ -1,0 +1,58 @@
+# ===== Python =====
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ===== Node / Next.js =====
+node_modules/
+.next/
+out/
+build/
+dist/
+.turbo/
+*.tsbuildinfo
+next-env.d.ts
+
+# ===== 환경변수 (보안) =====
+.env
+.env.local
+.env.production
+.env.development
+!.env.example
+
+# ===== 데이터 (용량 + 재생성 가능) =====
+# 종목별 일봉 CSV는 GitHub에 안 올림 (101MB, download_data.py로 재생성)
+data/ohlcv/
+data/stocks.db
+data/signals/all_signals.csv
+data/results/
+data/kospi_index.csv
+data/failed_tickers.txt
+
+# ===== Streamlit (구버전, 작업 안 함) =====
+.streamlit/credentials.toml
+
+# ===== 에디터 / OS =====
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# ===== Claude 개인 설정 =====
+.claude/
+
+# ===== 로그 =====
+*.log
+logs/
+
+# ===== 백테스트 결과 (재생성 가능) =====
+*.csv.bak

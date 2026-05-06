@@ -1,0 +1,188 @@
+@import "tailwindcss";
+
+/* ==========================================================
+   GmarketSans 웹폰트 (학원앱과 동일 소스)
+   ========================================================== */
+@font-face {
+  font-family: 'GmarketSansMedium';
+  src: url('https://gcore.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansMedium.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'GmarketSansBold';
+  src: url('https://gcore.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansBold.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ==========================================================
+   보다영어 (KKJ) 디자인 토큰
+   ========================================================== */
+:root {
+  --kkj-bg: #FFFFFF;
+  --kkj-card: #FFFFFF;
+  --kkj-card-soft: #F8FAFC;
+  --kkj-border: #E5E7EB;
+  --kkj-border-soft: #F1F5F9;
+
+  --kkj-text: #0F172A;
+  --kkj-text-muted: #475569;
+  --kkj-text-soft: #94A3B8;
+
+  --kkj-emerald: #10B981;
+  --kkj-emerald-strong: #059669;
+  --kkj-emerald-bright: #34D399;
+  --kkj-emerald-soft: #D1FAE5;
+  --kkj-emerald-glow: #ECFDF5;
+
+  --kkj-amber: #F59E0B;
+  --kkj-red: #EF4444;
+  --kkj-blue: #3B82F6;
+}
+
+/* Tailwind v4: @theme inline으로 컬러를 토큰 클래스로 노출
+   → bg-kkj-emerald, text-kkj-text, border-kkj-border 등 사용 가능 */
+@theme inline {
+  --color-kkj-bg: var(--kkj-bg);
+  --color-kkj-card: var(--kkj-card);
+  --color-kkj-card-soft: var(--kkj-card-soft);
+  --color-kkj-border: var(--kkj-border);
+  --color-kkj-border-soft: var(--kkj-border-soft);
+
+  --color-kkj-text: var(--kkj-text);
+  --color-kkj-text-muted: var(--kkj-text-muted);
+  --color-kkj-text-soft: var(--kkj-text-soft);
+
+  --color-kkj-emerald: var(--kkj-emerald);
+  --color-kkj-emerald-strong: var(--kkj-emerald-strong);
+  --color-kkj-emerald-bright: var(--kkj-emerald-bright);
+  --color-kkj-emerald-soft: var(--kkj-emerald-soft);
+  --color-kkj-emerald-glow: var(--kkj-emerald-glow);
+
+  --color-kkj-amber: var(--kkj-amber);
+  --color-kkj-red: var(--kkj-red);
+  --color-kkj-blue: var(--kkj-blue);
+
+  --font-sans: var(--font-nanum), 'Nanum Gothic', sans-serif;
+  --font-mono: var(--font-mono), 'JetBrains Mono', monospace;
+  --font-gmarket-medium: 'GmarketSansMedium', sans-serif;
+  --font-gmarket-bold: 'GmarketSansBold', sans-serif;
+}
+
+/* ==========================================================
+   기본 타입 + 도트 패턴 배경
+   ========================================================== */
+html, body {
+  font-family: var(--font-nanum), 'Nanum Gothic', sans-serif;
+  color: var(--kkj-text);
+}
+
+body {
+  background-color: var(--kkj-bg);
+  background-image: radial-gradient(rgba(15, 23, 42, 0.04) 1px, transparent 1px);
+  background-size: 24px 24px;
+  min-height: 100vh;
+}
+
+/* 폰트 유틸리티 */
+.font-gmarket-medium { font-family: 'GmarketSansMedium', sans-serif; }
+.font-gmarket-bold   { font-family: 'GmarketSansBold', sans-serif; }
+.font-mono-jb        { font-family: var(--font-mono), 'JetBrains Mono', monospace; }
+
+/* ==========================================================
+   재사용 유틸 클래스 (학원앱 시그니처)
+   ========================================================== */
+
+/* 메인 카드 — 그린 보더 + 약한 글로우 */
+.kkj-card-emerald {
+  background: var(--kkj-card);
+  border: 1px solid var(--kkj-emerald);
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.06),
+              0 4px 20px rgba(16, 185, 129, 0.10);
+  border-radius: 1rem;
+  transition: all 0.2s ease;
+}
+.kkj-card-emerald:hover {
+  border-color: var(--kkj-emerald-bright);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.10),
+              0 6px 20px rgba(16, 185, 129, 0.12);
+  transform: translateY(-2px);
+}
+
+/* 일반 카드 */
+.kkj-card {
+  background: var(--kkj-card);
+  border: 1px solid var(--kkj-border);
+  border-radius: 0.75rem;
+}
+
+/* 포커스 링 */
+.kkj-focus:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+/* 그린 글로우 점 (KKJ 로고용) */
+.kkj-glow-dot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--kkj-emerald);
+  box-shadow: 0 0 12px var(--kkj-emerald-bright),
+              0 0 4px var(--kkj-emerald-bright);
+}
+
+/* 코드 주석 라벨 */
+.kkj-comment {
+  font-family: var(--font-mono), 'JetBrains Mono', monospace;
+  color: var(--kkj-text-soft);
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+}
+
+/* 작은 그린 배지 */
+.kkj-pill-emerald {
+  display: inline-flex;
+  align-items: center;
+  background: var(--kkj-emerald-soft);
+  color: var(--kkj-emerald-strong);
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 0.375rem;
+  padding: 2px 8px;
+  font-family: var(--font-nanum), 'Nanum Gothic', sans-serif;
+}
+.kkj-pill-amber {
+  display: inline-flex;
+  align-items: center;
+  background: #FEF3C7;
+  color: #B45309;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 0.375rem;
+  padding: 2px 8px;
+}
+.kkj-pill-red {
+  display: inline-flex;
+  align-items: center;
+  background: #FEE2E2;
+  color: #B91C1C;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 0.375rem;
+  padding: 2px 8px;
+}
+
+/* 스크롤바 (그린 액센트) */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--kkj-card-soft); }
+::-webkit-scrollbar-thumb {
+  background: var(--kkj-border);
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--kkj-emerald-bright); }
