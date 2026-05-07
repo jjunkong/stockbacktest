@@ -18,6 +18,11 @@ import sys
 
 
 def main() -> None:
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
     print("[1] PyQt5 + pykiwoom import...")
     try:
         from pykiwoom.kiwoom import Kiwoom
@@ -37,8 +42,14 @@ def main() -> None:
     kiwoom.CommConnect(block=True)  # 로그인 완료까지 블록
 
     print("[4] 로그인 정보 조회")
-    user_id   = kiwoom.GetLoginInfo("USER_ID")
-    user_name = kiwoom.GetLoginInfo("USER_NAME")
+    def _fix(s: str) -> str:
+        try:
+            return s.encode("latin1").decode("cp949")
+        except Exception:
+            return s
+
+    user_id   = _fix(kiwoom.GetLoginInfo("USER_ID"))
+    user_name = _fix(kiwoom.GetLoginInfo("USER_NAME"))
     server    = kiwoom.GetLoginInfo("GetServerGubun")  # "1" = 모의, 그 외 실거래
     accounts  = kiwoom.GetLoginInfo("ACCNO")           # 계좌번호 ;-separated
 

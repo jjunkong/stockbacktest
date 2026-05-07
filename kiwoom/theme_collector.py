@@ -22,7 +22,20 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 THEMES_JSON = PROJECT_ROOT / "data" / "themes.json"
 
 
+def _decode(s) -> str:
+    try:
+        return str(s).encode("latin1").decode("cp949")
+    except Exception:
+        return str(s)
+
+
 def main() -> None:
+    import sys
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
     from pykiwoom.kiwoom import Kiwoom
 
     kiwoom = Kiwoom()
@@ -32,9 +45,12 @@ def main() -> None:
     print("[2] opt90001 (테마그룹별요청) — 전체 테마 목록")
     df = kiwoom.block_request(
         "opt90001",
-        검색구분="0",            # 0: 전체 검색
-        업종구분="0",            # 0: 전체
-        출력형태="1",            # 1: 테마별
+        검색구분="0",            # 0: 전체검색
+        종목코드="",
+        날짜구분="10",           # 기간 (1, 5, 10, 20)
+        테마명="",
+        등락수익구분="0",        # 0: 등락률
+        거래소구분="0",          # 0: 전체
         output="테마그룹별",
         next=0,
     )
@@ -46,25 +62,33 @@ def main() -> None:
 
     themes_out = []
     for i, row in df.iterrows():
-        theme_code = str(row.get("테마코드", "")).strip()
-        theme_name = str(row.get("테마명", "")).strip()
+        # opt90001 의 '종목코드' 가 실제로는 테마 그룹 코드
+        theme_code = _decode(row.get("종목코드", "")).strip()
+        theme_name = _decode(row.get("테마명", "")).strip()
         if not theme_code or not theme_name:
             continue
 
         print(f"  [{i+1}/{len(df)}] {theme_code} {theme_name}")
 
-        # 테마 구성 종목
+        # opt90002 (테마구성종목요청)
+        # 키움 작명 주의: 인자명 '종목코드' 가 실제로는 테마 그룹 코드를 받음
         sub = kiwoom.block_request(
             "opt90002",
-            테마그룹="테마",          # 키움 명세 따라 조정 필요
-            테마코드=theme_code,
+            날짜구분="2",
+            종목코드=theme_code,
+            거래소구분="0",
             output="테마구성종목",
             next=0,
         )
         if sub is None or sub.empty:
             stocks = []
         else:
-            stocks = [str(c).strip() for c in sub["종목코드"].tolist() if c]
+            # 종목코드는 ASCII 6자리. 앞에 'A' 같은 prefix 가 붙는 경우 정리
+            stocks = []
+            for c in sub["종목코드"].tolist():
+                code = str(c).strip().lstrip("A").lstrip("a")
+                if code and code.isdigit() and len(code) == 6:
+                    stocks.append(code)
 
         themes_out.append({
             "id": theme_code,

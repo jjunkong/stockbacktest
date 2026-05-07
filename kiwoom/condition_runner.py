@@ -35,40 +35,60 @@ CONDITION_NAME_MAP = {
 
 
 def main() -> None:
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
     from pykiwoom.kiwoom import Kiwoom
 
     kiwoom = Kiwoom()
     print("[1] 키움 로그인 중...")
     kiwoom.CommConnect(block=True)
-    print(f"  로그인 OK ({kiwoom.GetLoginInfo('USER_NAME')})")
+    raw_name = kiwoom.GetLoginInfo("USER_NAME")
+    try:
+        user_name = raw_name.encode("latin1").decode("cp949")
+    except Exception:
+        user_name = raw_name
+    print(f"  로그인 OK ({user_name})")
 
     print("[2] 조건검색식 목록 동기화 (GetConditionLoad)...")
     kiwoom.GetConditionLoad()
 
+    def _decode(s: str) -> str:
+        try:
+            return s.encode("latin1").decode("cp949")
+        except Exception:
+            return s
+
     print("[3] 등록된 조건검색식 목록")
-    conditions = kiwoom.GetConditionNameList()  # [(index, name), ...]
+    conditions = kiwoom.GetConditionNameList()  # [(index, raw_name), ...]
     if not conditions:
         print("  [!] 등록된 조건검색식이 없습니다. 영웅문에서 먼저 만들어 저장하세요.")
         sys.exit(1)
-    for idx, name in conditions:
+    for idx, raw_name in conditions:
+        name = _decode(raw_name)
         mapped = CONDITION_NAME_MAP.get(name, "(매핑 없음)")
         print(f"    [{idx}] {name}  →  {mapped}")
 
     print()
-    print("[4] 각 조건식 실행 (조회 한 번씩 — 너무 자주 부르지 말 것)")
+    if not CONDITION_NAME_MAP:
+        print("[!] CONDITION_NAME_MAP 이 비어 있어 실행할 조건이 없습니다.")
+        print("    위 목록에서 사용할 이름을 골라 condition_runner.py 의 CONDITION_NAME_MAP 에 추가하세요.")
+        return
+
+    print("[4] 매핑된 조건식만 실행")
     today = datetime.now().strftime("%Y-%m-%d")
     output: dict[str, list[str]] = {}
 
-    for idx, name in conditions:
-        print(f"  실행: [{idx}] {name}")
-        codes = kiwoom.SendCondition(
-            screen_no="0156",
-            cond_name=name,
-            index=int(idx),
-            search_type=0,   # 0: 일반 조회 (실시간 X)
-        )
-        # codes: 조건 만족 종목 코드 리스트
-        cond_id = CONDITION_NAME_MAP.get(name, name)
+    for idx, raw_name in conditions:
+        name = _decode(raw_name)
+        if name not in CONDITION_NAME_MAP:
+            continue
+        cond_id = CONDITION_NAME_MAP[name]
+        print(f"  실행: [{idx}] {name}  →  {cond_id}")
+        # raw_name 그대로 OCX 에 넘겨야 함 (pykiwoom 이 latin1->원본 CP949 로 되돌림)
+        codes = kiwoom.SendCondition("0156", raw_name, int(idx), 0)
         output[cond_id] = list(codes) if codes else []
         print(f"    → {len(output[cond_id])}종목")
         time.sleep(2)  # TR 호출 제한 회피

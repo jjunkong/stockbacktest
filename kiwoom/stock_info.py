@@ -53,13 +53,10 @@ def main(limit: int | None = None) -> None:
         if df is not None and not df.empty:
             r = df.iloc[0]
             fundamentals[code] = {
-                "name": str(r.get("종목명", "")).strip(),
                 "per": float(r.get("PER", 0) or 0),
                 "pbr": float(r.get("PBR", 0) or 0),
                 "eps": float(r.get("EPS", 0) or 0),
                 "bps": float(r.get("BPS", 0) or 0),
-                "market_cap": int(str(r.get("시가총액", "0")).replace(",", "")) * 1_000_000,  # 백만원 단위
-                "shares": int(str(r.get("유통주식", "0")).replace(",", "")),
             }
         if (i + 1) % 50 == 0:
             print(f"  진행 {i+1}/{len(tickers)}")
