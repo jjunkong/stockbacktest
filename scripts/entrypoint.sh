@@ -13,6 +13,14 @@ mkdir -p "$DATA_DIR" "$DATA_DIR/signals"
 DB_PATH="$DATA_DIR/stocks.db"
 SIGNALS_PATH="$DATA_DIR/signals/all_signals.csv"
 
+# Railway Web UI 가 환경변수 끝에 \r 등 보이지 않는 문자를 붙이는 경우가 있어
+# curl 이 'Malformed input to a URL function' 으로 거부함. 사전에 정리.
+sanitize() {
+    printf '%s' "$1" | tr -d '\r\n\t' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+}
+DATA_RELEASE_URL_DB="$(sanitize "${DATA_RELEASE_URL_DB:-}")"
+DATA_RELEASE_URL_SIGNALS="$(sanitize "${DATA_RELEASE_URL_SIGNALS:-}")"
+
 # 1. stocks.db 다운로드 (이미 있으면 스킵)
 if [ ! -f "$DB_PATH" ]; then
     if [ -n "$DATA_RELEASE_URL_DB" ]; then
