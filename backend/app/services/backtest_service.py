@@ -47,9 +47,13 @@ def run_backtest(
             except (ValueError, TypeError):
                 pass
 
+    # signals 에 등장하는 종목만 batch 로 SQLite 에서 가져오기 (메모리 절약)
+    needed_tickers = signals["티커"].unique().tolist()
+    ohlcv_dict = store.get_ohlcv_batch(needed_tickers)
+
     results = backtest_with_cache(
         signals,
-        store.ohlcv,
+        ohlcv_dict,
         list(targets),
         entry=entry,
         track_days=track_days,

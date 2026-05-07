@@ -34,10 +34,9 @@ async def lifespan(_app: FastAPI):
     elapsed = time.time() - t0
     print(
         f"[lifespan] loaded in {elapsed:.1f}s | "
-        f"ohlcv={len(store.ohlcv)}, "
         f"signals={len(store.signals) if store.signals is not None else 0}, "
         f"tickers={len(store.tickers) if store.tickers is not None else 0}, "
-        f"themes={len(theme_store.themes)}"
+        f"themes={len(theme_store.themes)} (ohlcv: lazy)"
     )
     yield
     # shutdown 시 정리할 것 없음

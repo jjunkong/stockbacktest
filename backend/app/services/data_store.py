@@ -1,17 +1,18 @@
 """
 앱 전역에서 공유하는 인메모리 데이터 스토어.
 
-서버 시작 시 lifespan에서 prime() 호출 → OHLCV + 신호 + 메타 모두 메모리에 적재.
-이후 모든 요청은 디스크 IO 없이 메모리에서 즉시 조회.
+서버 시작 시 lifespan에서 prime() 호출 → 가벼운 메타(signals + tickers)만 메모리.
+OHLCV 는 요청 시 SQLite 에서 lazy 로드 (LRU 캐시) — 메모리 ~250MB 안에 머물기 위함.
 
 데이터 소스 우선순위:
-  1. stocks.db (SQLite, 단일 파일) — Phase 5에서 클라우드 배포용
+  1. stocks.db (SQLite, 단일 파일) — 클라우드 배포용
   2. data/ohlcv/*.csv (1,543개 파일) — 로컬 개발용 fallback
 """
 
 from __future__ import annotations
 
 import sqlite3
+from collections import OrderedDict
 from pathlib import Path
 from typing import Iterable
 
@@ -25,23 +26,26 @@ SIGNALS_CSV = DATA_DIR / "signals" / "all_signals.csv"
 TICKERS_CSV = DATA_DIR / "tickers_filtered.csv"
 STOCKS_DB = DATA_DIR / "stocks.db"
 
+# 단일 종목 조회용 LRU 캐시 크기 (한 종목 ~1MB → 50개면 약 50MB)
+_OHLCV_CACHE_MAX = 50
+
 
 class DataStore:
     """앱 전역 캐시. main.py의 lifespan에서 prime() 호출."""
 
     def __init__(self) -> None:
-        self.ohlcv: dict[str, pd.DataFrame] = {}
         self.signals: pd.DataFrame | None = None
         self.tickers: pd.DataFrame | None = None
+        # 단일 조회용 LRU
+        self._ohlcv_cache: OrderedDict[str, pd.DataFrame] = OrderedDict()
 
     def prime(self) -> None:
-        """모든 OHLCV + signals + tickers 메모리에 로드."""
+        """가벼운 메타(signals + tickers)만 메모리. OHLCV 는 lazy 로드."""
         self.tickers = self._load_tickers()
         self.signals = self._load_signals()
-        self.ohlcv = self._load_all_ohlcv(self.tickers["티커"].tolist())
 
     def is_ready(self) -> bool:
-        return self.signals is not None and self.tickers is not None and len(self.ohlcv) > 0
+        return self.signals is not None and self.tickers is not None
 
     @staticmethod
     def _load_tickers() -> pd.DataFrame:
@@ -55,50 +59,89 @@ class DataStore:
         df["티커"] = df["티커"].str.zfill(6)
         return df
 
-    @staticmethod
-    def _load_all_ohlcv(tickers: Iterable[str]) -> dict[str, pd.DataFrame]:
-        # SQLite 단일 파일이 있으면 우선 (배포 환경)
-        if STOCKS_DB.exists():
-            return DataStore._load_ohlcv_from_sqlite(tickers)
-        # 없으면 CSV fallback (로컬 개발)
-        return DataStore._load_ohlcv_from_csv(tickers)
-
-    @staticmethod
-    def _load_ohlcv_from_sqlite(tickers: Iterable[str]) -> dict[str, pd.DataFrame]:
-        """stocks.db (SQLite)에서 한 번에 읽어 dict로 그룹핑."""
-        wanted = set(t.zfill(6) for t in tickers)
-        with sqlite3.connect(str(STOCKS_DB)) as conn:
-            df = pd.read_sql(
-                "SELECT 티커, 날짜, Open, High, Low, Close, Volume FROM ohlcv ORDER BY 티커, 날짜",
-                conn,
-                parse_dates=["날짜"],
-            )
-        df["티커"] = df["티커"].astype(str).str.zfill(6)
-        df = df[df["티커"].isin(wanted)]
-        # 미마감 행 제거
-        df = df[df["Open"] > 0]
-
-        cache: dict[str, pd.DataFrame] = {}
-        for ticker, group in df.groupby("티커"):
-            g = group.drop(columns=["티커"]).set_index("날짜").sort_index()
-            cache[ticker] = g
-        return cache
-
-    @staticmethod
-    def _load_ohlcv_from_csv(tickers: Iterable[str]) -> dict[str, pd.DataFrame]:
-        cache: dict[str, pd.DataFrame] = {}
-        for t in sorted(set(tickers)):
-            path = OHLCV_DIR / f"{t}.csv"
-            if not path.exists():
-                continue
-            df = pd.read_csv(path, parse_dates=["날짜"], index_col="날짜").sort_index()
-            # 미마감(미체결) 행 제거 — Open이 0이거나 None인 행
-            df = df[df["Open"] > 0]
-            cache[t] = df
-        return cache
+    # ===== 단일 종목 조회 (LRU 캐시 사용) =====
 
     def get_ohlcv(self, ticker: str) -> pd.DataFrame | None:
-        return self.ohlcv.get(ticker.zfill(6))
+        t = ticker.zfill(6)
+        if t in self._ohlcv_cache:
+            self._ohlcv_cache.move_to_end(t)
+            return self._ohlcv_cache[t]
+        df = self._fetch_one(t)
+        if df is not None:
+            self._ohlcv_cache[t] = df
+            if len(self._ohlcv_cache) > _OHLCV_CACHE_MAX:
+                self._ohlcv_cache.popitem(last=False)
+        return df
+
+    @staticmethod
+    def _fetch_one(ticker: str) -> pd.DataFrame | None:
+        if STOCKS_DB.exists():
+            return DataStore._fetch_one_sqlite(ticker)
+        return DataStore._fetch_one_csv(ticker)
+
+    @staticmethod
+    def _fetch_one_sqlite(ticker: str) -> pd.DataFrame | None:
+        with sqlite3.connect(str(STOCKS_DB)) as conn:
+            df = pd.read_sql(
+                "SELECT 날짜, Open, High, Low, Close, Volume FROM ohlcv WHERE 티커 = ? ORDER BY 날짜",
+                conn,
+                params=[ticker],
+                parse_dates=["날짜"],
+            )
+        if df.empty:
+            return None
+        df = df[df["Open"] > 0]
+        return df.set_index("날짜").sort_index()
+
+    @staticmethod
+    def _fetch_one_csv(ticker: str) -> pd.DataFrame | None:
+        path = OHLCV_DIR / f"{ticker}.csv"
+        if not path.exists():
+            return None
+        df = pd.read_csv(path, parse_dates=["날짜"], index_col="날짜").sort_index()
+        return df[df["Open"] > 0]
+
+    # ===== 배치 조회 (백테스트 용. LRU 우회) =====
+
+    def get_ohlcv_batch(self, tickers: Iterable[str]) -> dict[str, pd.DataFrame]:
+        """다수 종목 한 번에 메모리로. 백테스트가 호출 — 결과 dict 는 호출자만 사용."""
+        unique = sorted(set(t.zfill(6) for t in tickers))
+        if not unique:
+            return {}
+        if STOCKS_DB.exists():
+            return DataStore._fetch_batch_sqlite(unique)
+        return DataStore._fetch_batch_csv(unique)
+
+    @staticmethod
+    def _fetch_batch_sqlite(tickers: list[str]) -> dict[str, pd.DataFrame]:
+        # IN 쿼리 chunk (SQLite 변수 한도 ~999 회피)
+        out: dict[str, pd.DataFrame] = {}
+        with sqlite3.connect(str(STOCKS_DB)) as conn:
+            for i in range(0, len(tickers), 500):
+                chunk = tickers[i : i + 500]
+                placeholders = ",".join(["?"] * len(chunk))
+                sql = (
+                    f"SELECT 티커, 날짜, Open, High, Low, Close, Volume "
+                    f"FROM ohlcv WHERE 티커 IN ({placeholders}) ORDER BY 티커, 날짜"
+                )
+                df = pd.read_sql(sql, conn, params=chunk, parse_dates=["날짜"])
+                df["티커"] = df["티커"].astype(str).str.zfill(6)
+                df = df[df["Open"] > 0]
+                for ticker, group in df.groupby("티커"):
+                    g = group.drop(columns=["티커"]).set_index("날짜").sort_index()
+                    out[ticker] = g
+        return out
+
+    @staticmethod
+    def _fetch_batch_csv(tickers: list[str]) -> dict[str, pd.DataFrame]:
+        out: dict[str, pd.DataFrame] = {}
+        for t in tickers:
+            df = DataStore._fetch_one_csv(t)
+            if df is not None:
+                out[t] = df
+        return out
+
+    # ===== 기타 =====
 
     def get_market_for(self, ticker: str) -> str | None:
         if self.tickers is None:
