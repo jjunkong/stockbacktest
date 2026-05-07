@@ -37,7 +37,10 @@ if [ ! -f "$SIGNALS_PATH" ]; then
 fi
 
 # 3. uvicorn 시작
+# main.py 가 'from app.routers import ...' 으로 import 하므로
+# /app/backend 를 sys.path 에 올려야 한다 (--app-dir).
+# cwd 는 /app 으로 두어 data_store 의 절대경로 (parents[3]) 가 그대로 작동.
 PORT="${PORT:-8000}"
 echo "[entrypoint] Starting uvicorn on port $PORT"
 cd /app
-exec python -m uvicorn backend.app.main:app --host 0.0.0.0 --port "$PORT"
+exec python -m uvicorn app.main:app --app-dir /app/backend --host 0.0.0.0 --port "$PORT"
