@@ -57,8 +57,15 @@ def main() -> None:
     # 4. DB 재생성
     run("Build DB", ["src/build_db.py"])
 
-    # 5. 신호 재검출
+    # 5. 신호 재검출 (cond1/cond2)
     run("Detect signals", ["src/test_signals.py"])
+
+    # 6. 키움 조건식 신호 병합 (kiwoom_*) — kiwoom_signals/*.json 이 있을 때만
+    kiwoom_dir = ROOT / "data" / "kiwoom_signals"
+    if kiwoom_dir.exists() and any(kiwoom_dir.glob("*.json")):
+        run("Merge kiwoom signals", ["scripts/merge_kiwoom_signals.py"])
+    else:
+        print("\n  [skip] data/kiwoom_signals/ 비어있음 — 병합 단계 생략")
 
     print()
     print("=" * 60)
