@@ -10,6 +10,7 @@ import {
   Pill,
   SectionLabel,
 } from "@/components/ui";
+import { LiveQuote } from "@/components/ui/LiveQuote";
 import { CandleChart } from "@/components/charts/CandleChart";
 import { useBacktestConfig } from "@/lib/hooks/useBacktestConfig";
 import {
@@ -17,6 +18,7 @@ import {
   useSignalDates,
   useTickerOhlcv,
 } from "@/lib/hooks/useBacktest";
+import { useQuotes, quotesByTicker } from "@/lib/hooks/useQuotes";
 
 const MARKET_LABEL: Record<string, string> = {
   all: "전체",
@@ -81,6 +83,14 @@ export default function DatePage() {
   }, [selected, pickedDate]);
 
   const ohlcvQ = useTickerOhlcv(selected?.ticker ?? null, ohlcvRange ?? undefined);
+
+  // 카드별 실시간 시세 (2초 폴링)
+  const cardTickers = useMemo(
+    () => bundleQ.data?.individuals.map((s) => s.ticker) ?? [],
+    [bundleQ.data],
+  );
+  const quotesQ = useQuotes(cardTickers);
+  const quoteMap = useMemo(() => quotesByTicker(quotesQ.data), [quotesQ.data]);
 
   const heroMetric = useMemo(() => {
     if (!bundleQ.data) return null;
@@ -280,6 +290,11 @@ export default function DatePage() {
                       </div>
                       <div className="font-gmarket-medium text-sm text-kkj-text mb-1 truncate">
                         {s.name}
+                      </div>
+
+                      {/* 실시간 시세 */}
+                      <div className="mb-2">
+                        <LiveQuote quote={quoteMap[s.ticker]} />
                       </div>
 
                       {/* 신호 당일 정보 */}

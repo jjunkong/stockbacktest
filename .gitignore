@@ -59,6 +59,7 @@ logs/
 # ===== 백테스트 결과 (재생성 가능) =====
 *.csv.bak
 
-# ===== 키움 (개인 설정 / 1회성 백업) =====
+# ===== 키움 (개인 설정 / 1회성 백업 / 토큰 캐시) =====
 kiwoom/selected_conditions.json
 data/themes.manual.backup.json
+backend/.kiwoom_token.json

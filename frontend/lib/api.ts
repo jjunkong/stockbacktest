@@ -8,8 +8,11 @@ import type {
   DateBundleResponse,
   EntryInfo,
   HealthResponse,
+  CondSearchEntry,
+  CondSearchTickers,
   KospiResponse,
   MarketInfo,
+  Quote,
   RegimeComparisonResponse,
   SignalResult,
   ThemeDetailResponse,
@@ -147,6 +150,17 @@ export const api = {
   // ===== 테마 =====
   themes: () => request<ThemeSummary[]>("/themes"),
   themeDetail: (id: string) => request<ThemeDetailResponse>(`/themes/${id}`),
+
+  // ===== 실시간 시세 =====
+  quotes: (tickers: string[]) =>
+    request<Quote[]>("/quotes", {
+      searchParams: { tickers: tickers.join(",") },
+    }),
+
+  // ===== 영웅문 조건검색 (장중 라이브) =====
+  condSearchList: () => request<CondSearchEntry[]>("/cond-search/list"),
+  condSearchTickers: (idx: string) =>
+    request<CondSearchTickers>(`/cond-search/${idx}/tickers`),
 };
 
 export { ApiError };

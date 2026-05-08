@@ -2,12 +2,15 @@
 
 import clsx from "clsx";
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 import { SectionLabel } from "@/components/ui";
+import { api } from "@/lib/api";
 import { useBacktestConfig } from "@/lib/hooks/useBacktestConfig";
 import type { ConditionId, EntryOption, MarketId } from "@/lib/api-types";
 
-const CONDITIONS: { id: ConditionId; label: string }[] = [
+// fallback - 백엔드 응답 없을 때만 사용
+const FALLBACK_CONDITIONS: { id: ConditionId; label: string }[] = [
   { id: "cond1", label: "급등주 추격형" },
   { id: "cond2", label: "갭상승 정배열형" },
 ];
@@ -39,6 +42,13 @@ export function ControlPanel() {
   const [targetsInput, setTargetsInput] = useState(config.targetsCsv);
   useEffect(() => setTargetsInput(config.targetsCsv), [config.targetsCsv]);
 
+  const conditionsQ = useQuery({
+    queryKey: ["conditions"],
+    queryFn: () => api.conditions(),
+    staleTime: 5 * 60 * 1000, // 5분
+  });
+  const conditions = conditionsQ.data ?? FALLBACK_CONDITIONS;
+
   return (
     <div className="space-y-4">
       <SectionLabel>설정</SectionLabel>
@@ -51,7 +61,7 @@ export function ControlPanel() {
           onChange={(e) => update({ cond: e.target.value as ConditionId })}
           className={SELECT_CLASS}
         >
-          {CONDITIONS.map((c) => (
+          {conditions.map((c) => (
             <option key={c.id} value={c.id}>
               {c.label}
             </option>

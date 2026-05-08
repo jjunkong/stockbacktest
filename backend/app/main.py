@@ -18,7 +18,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import meta, backtest, tickers, kospi, themes
+from app.routers import meta, backtest, tickers, kospi, themes, quotes, cond_search
 from app.schemas.common import HealthResponse
 from app.services.data_store import store
 from app.services.theme_store import theme_store
@@ -79,6 +79,8 @@ app.include_router(backtest.router, prefix=API_PREFIX)
 app.include_router(tickers.router, prefix=API_PREFIX)
 app.include_router(kospi.router, prefix=API_PREFIX)
 app.include_router(themes.router, prefix=API_PREFIX)
+app.include_router(quotes.router, prefix=API_PREFIX)
+app.include_router(cond_search.router, prefix=API_PREFIX)
 
 
 # ===== Health check =====

@@ -114,8 +114,7 @@ export function useBacktestConfig() {
     const extra = parseInt(params.get("extra") ?? "");
     const targetsRaw = params.get("targets") ?? "";
 
-    const cond: ConditionId =
-      condRaw === "cond1" || condRaw === "cond2" ? condRaw : def.cond;
+    const cond: ConditionId = condRaw && condRaw.length > 0 ? condRaw : def.cond;
     const market: MarketId =
       marketRaw === "all" || marketRaw === "KOSPI" || marketRaw === "KOSDAQ"
         ? marketRaw

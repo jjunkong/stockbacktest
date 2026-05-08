@@ -2,7 +2,8 @@
  * 백엔드 API 응답 타입 (backend/app/schemas와 동기화).
  */
 
-export type ConditionId = "cond1" | "cond2";
+/** 동적 조건식 ID — cond1, cond2, kiwoom_131 등 백엔드가 노출하는 모든 ID. */
+export type ConditionId = string;
 export type MarketId = "all" | "KOSPI" | "KOSDAQ";
 export type EntryOption = "close_today" | "open_next" | "close_next";
 
@@ -194,4 +195,36 @@ export interface KospiRow {
 export interface KospiResponse {
   ma_window: number;
   rows: KospiRow[];
+}
+
+export interface Quote {
+  ticker: string;
+  name?: string | null;
+  current_price?: number | null;
+  change?: number | null;
+  change_rate?: number | null;
+  open?: number | null;
+  high?: number | null;
+  low?: number | null;
+  base_price?: number | null;
+  /** 당일 누적 거래량 (주) */
+  volume?: number | null;
+  /** 당일 누적 거래대금 (원, 거래량×현재가 근사) */
+  amount?: number | null;
+  /** 시가총액 (단위: 억원) */
+  market_cap?: number | null;
+  /** 거래량 전일비 (%) */
+  volume_pre_rate?: number | null;
+  error?: string;
+}
+
+export interface CondSearchEntry {
+  idx: string;
+  name: string;
+}
+
+export interface CondSearchTickers {
+  idx: string;
+  tickers: { ticker: string; name: string; themes?: string[] }[];
+  fetched_at: number;
 }

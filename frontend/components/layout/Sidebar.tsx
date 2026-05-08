@@ -14,6 +14,7 @@ interface NavItem {
 }
 
 const NAV: NavItem[] = [
+  { href: "/live", label: "라이브", description: "지금 조건 만족 중인 종목" },
   { href: "/", label: "날짜별 분석", description: "그 날 신호 묶음의 도달률" },
   { href: "/matrix", label: "전체 매트릭스", description: "조건식 전체 손익비" },
   { href: "/regime", label: "장세별 비교", description: "상승장 vs 하락장" },
