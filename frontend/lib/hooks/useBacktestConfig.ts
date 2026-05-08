@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import type {
@@ -21,7 +21,10 @@ export interface BacktestConfig {
   targetsCsv: string;
 }
 
-const DEFAULT: BacktestConfig = {
+// 사용자가 마지막에 선택한 설정 (localStorage)
+const LS_KEY = "backtest:user-defaults";
+
+const HARD_DEFAULT: BacktestConfig = {
   cond: "cond1",
   market: "all",
   entry: "open_next",
@@ -30,6 +33,50 @@ const DEFAULT: BacktestConfig = {
   targets: [0.05, 0.1, 0.15, 0.2],
   targetsCsv: "5,10,15,20",
 };
+
+interface UserDefaults {
+  cond?: ConditionId;
+  market?: MarketId;
+  entry?: EntryOption;
+  trackDays?: number;
+  extraDays?: number;
+  targetsCsv?: string;
+}
+
+function loadUserDefaults(): UserDefaults {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(LS_KEY);
+    return raw ? (JSON.parse(raw) as UserDefaults) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveUserDefaults(patch: UserDefaults): void {
+  if (typeof window === "undefined") return;
+  try {
+    const prev = loadUserDefaults();
+    const next = { ...prev, ...patch };
+    window.localStorage.setItem(LS_KEY, JSON.stringify(next));
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
+/** URL > localStorage > HARD_DEFAULT 순서로 적용 */
+function getDefault(): BacktestConfig {
+  const ud = loadUserDefaults();
+  return {
+    ...HARD_DEFAULT,
+    ...(ud.cond ? { cond: ud.cond } : {}),
+    ...(ud.market ? { market: ud.market } : {}),
+    ...(ud.entry ? { entry: ud.entry } : {}),
+    ...(ud.trackDays !== undefined ? { trackDays: ud.trackDays } : {}),
+    ...(ud.extraDays !== undefined ? { extraDays: ud.extraDays } : {}),
+    ...(ud.targetsCsv ? { targetsCsv: ud.targetsCsv, targets: parseTargetsCsv(ud.targetsCsv).targets } : {}),
+  };
+}
 
 function parseTargetsCsv(csv: string): { targets: number[]; csv: string } {
   const cleaned = csv
@@ -58,6 +105,8 @@ export function useBacktestConfig() {
   const pathname = usePathname();
 
   const config = useMemo<BacktestConfig>(() => {
+    const def = getDefault();   // localStorage + HARD_DEFAULT 병합
+
     const condRaw = params.get("cond");
     const marketRaw = params.get("market");
     const entryRaw = params.get("entry");
@@ -66,30 +115,49 @@ export function useBacktestConfig() {
     const targetsRaw = params.get("targets") ?? "";
 
     const cond: ConditionId =
-      condRaw === "cond1" || condRaw === "cond2" ? condRaw : DEFAULT.cond;
+      condRaw === "cond1" || condRaw === "cond2" ? condRaw : def.cond;
     const market: MarketId =
       marketRaw === "all" || marketRaw === "KOSPI" || marketRaw === "KOSDAQ"
         ? marketRaw
-        : DEFAULT.market;
+        : def.market;
     const entry: EntryOption =
       entryRaw === "close_today" || entryRaw === "open_next" || entryRaw === "close_next"
         ? entryRaw
-        : DEFAULT.entry;
+        : def.entry;
 
     const { targets, csv } = targetsRaw
       ? parseTargetsCsv(targetsRaw)
-      : { targets: DEFAULT.targets, csv: DEFAULT.targetsCsv };
+      : { targets: def.targets, csv: def.targetsCsv };
 
     return {
       cond,
       market,
       entry,
-      trackDays: Number.isFinite(track) && track >= 1 ? track : DEFAULT.trackDays,
-      extraDays: Number.isFinite(extra) && extra >= 0 ? extra : DEFAULT.extraDays,
+      trackDays: Number.isFinite(track) && track >= 1 ? track : def.trackDays,
+      extraDays: Number.isFinite(extra) && extra >= 0 ? extra : def.extraDays,
       targets,
       targetsCsv: csv,
     };
   }, [params]);
+
+  // 설정이 바뀔 때마다 localStorage에 저장 (다음 방문 시 그대로 복원)
+  useEffect(() => {
+    saveUserDefaults({
+      cond: config.cond,
+      market: config.market,
+      entry: config.entry,
+      trackDays: config.trackDays,
+      extraDays: config.extraDays,
+      targetsCsv: config.targetsCsv,
+    });
+  }, [
+    config.cond,
+    config.market,
+    config.entry,
+    config.trackDays,
+    config.extraDays,
+    config.targetsCsv,
+  ]);
 
   const update = useCallback(
     (patch: Partial<BacktestConfig>) => {

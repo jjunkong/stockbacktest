@@ -132,15 +132,15 @@ def get_signal_dates(
     extra_days: int = 20,
     targets: str = Query("5,10,15,20"),
 ) -> list[Date]:
-    """해당 조건/시장 기준 신호 발생일 목록 (최신순)."""
+    """
+    해당 조건/시장 기준 신호 발생일 목록 (최신순).
+    skipped 신호도 포함 — 가장 최근 신호일이 진입가 결정 못해도 표시되도록.
+    """
     tgt_list = tuple(sorted({float(x.strip())/100 for x in targets.split(",") if x.strip()}))
     results = run_backtest(condition, market, entry, track_days, extra_days, tgt_list)
     if results.empty:
         return []
-    valid = results[results["skipped"].isna()]
-    if valid.empty:
-        return []
-    dates = pd.to_datetime(valid["신호일"]).dt.normalize().unique()
+    dates = pd.to_datetime(results["신호일"]).dt.normalize().unique()
     return sorted([d.date() for d in pd.DatetimeIndex(dates)], reverse=True)
 
 
@@ -160,10 +160,11 @@ def get_date_bundle(
     results = run_backtest(condition, market, entry, track_days, extra_days, tgt_list)
     if results.empty:
         raise HTTPException(404, "해당 조건/시장에 신호 없음")
-    valid = results[results["skipped"].isna()].copy()
-    valid["_d"] = pd.to_datetime(valid["신호일"]).dt.normalize()
+    # skipped 포함 (가장 최근일도 보이게). entry_price 등은 null로 표시됨.
+    all_results = results.copy()
+    all_results["_d"] = pd.to_datetime(all_results["신호일"]).dt.normalize()
     pick = pd.Timestamp(date)
-    group = valid[valid["_d"] == pick].drop(columns=["_d"])
+    group = all_results[all_results["_d"] == pick].drop(columns=["_d"])
 
     if group.empty:
         return DateBundleResponse(date=date, n_signals=0, bundle_stats=[], individuals=[])
