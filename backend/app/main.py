@@ -102,3 +102,14 @@ def health() -> HealthResponse:
         n_tickers=len(store.tickers) if store.tickers is not None else 0,
         n_signals=len(store.signals) if store.signals is not None else 0,
     )
+
+
+@app.get(f"{API_PREFIX}/_outbound-ip", tags=["meta"])
+def outbound_ip() -> dict:
+    """Railway 가 외부 호출 시 어떤 IP 로 나가는지 확인용 (임시)."""
+    import requests
+    try:
+        ip = requests.get("https://api.ipify.org", timeout=5).text
+        return {"outbound_ip": ip}
+    except Exception as e:
+        return {"error": str(e)}
