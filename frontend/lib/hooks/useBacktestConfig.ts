@@ -87,7 +87,7 @@ function parseTargetsCsv(csv: string): { targets: number[]; csv: string } {
     .filter((n) => Number.isFinite(n) && n > 0);
   const sorted = Array.from(new Set(cleaned)).sort((a, b) => a - b);
   if (sorted.length === 0) {
-    return { targets: DEFAULT.targets, csv: DEFAULT.targetsCsv };
+    return { targets: HARD_DEFAULT.targets, csv: HARD_DEFAULT.targetsCsv };
   }
   return {
     targets: sorted.map((n) => n / 100),
